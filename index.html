@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelevisioneAI.it - Televideo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* TELEVIDEO FONT & COLORS */
+        .font-teletext {
+            font-family: 'VT323', monospace;
+        }
+        
+        /* Teletext Palette */
+        .tx-yellow { color: #FFFF00; }
+        .tx-cyan { color: #00FFFF; }
+        .tx-green { color: #00FF00; }
+        .tx-magenta { color: #FF00FF; }
+        .tx-red { color: #FF0000; }
+        .tx-blue { color: #0000FF; }
+        .tx-white { color: #FFFFFF; }
+        .tx-black { color: #000000; }
+        
+        .bg-tx-blue { background-color: #0000FF; }
+        .bg-tx-yellow { background-color: #FFFF00; }
+        .bg-tx-red { background-color: #FF0000; }
+
+        /* CRT Screen Effects */
+        body {
+            background-color: #1a1a1a;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: radial-gradient(#333, #000);
+        }
+
+        .tv-set {
+            position: relative;
+            width: 95vw; /* Increased size */
+            max-width: 1000px; /* Increased max-width */
+            /* Fixed Aspect Ratio ensures the TV never changes shape */
+            aspect-ratio: 4/3;
+            background: #222; 
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            border: 8px solid #111;
+            /* Prevent any internal content from expanding the TV */
+            min-height: 0; 
+            min-width: 0;
+        }
+
+        .screen-container {
+            flex-grow: 1;
+            position: relative;
+            background: #000;
+            border-radius: 50% / 10%;
+            overflow: hidden;
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.9);
+            border: 15px solid #333;
+            border-bottom-color: #222;
+            border-right-color: #222;
+            /* Force rigid containment */
+            width: 100%;
+            height: 100%;
+        }
+        
+        .screen-container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 20;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .screen-content {
+            width: 100%;
+            height: 100%;
+            background-color: #000000; 
+            position: relative;
+            overflow: hidden; /* Strict overflow hiding */
+            color: #fff;
+            opacity: 0;
+            transition: opacity 0.3s;
+            image-rendering: pixelated;
+        }
+
+        /* Scanlines */
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.3));
+            background-size: 100% 4px;
+            z-index: 10;
+            pointer-events: none;
+            animation: scrollScanlines 10s linear infinite;
+        }
+
+        .flicker {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.02);
+            opacity: 0;
+            z-index: 11;
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+
+        .vignette {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+            z-index: 12;
+            pointer-events: none;
+        }
+
+        /* Control Panel */
+        .controls {
+            height: 60px;
+            background: #1a1a1a;
+            border-top: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            margin-top: 10px;
+            border-radius: 4px;
+            flex-shrink: 0; /* Prevent controls from shrinking */
+        }
+
+        .knob {
+            width: 40px;
+            height: 40px;
+            background: #333;
+            border-radius: 50%;
+            border: 2px solid #000;
+            box-shadow: 1px 1px 3px rgba(255,255,255,0.1) inset;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.3s;
+        }
+        .knob::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            width: 4px;
+            height: 12px;
+            background: #555;
+            transform: translateX(-50%);
+            border-radius: 2px;
+        }
+
+        .brand-logo {
+            font-family: 'VT323', monospace;
+            color: #ccc;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+        }
+
+        /* Animations */
+        @keyframes scrollScanlines {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100%; }
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.02; }
+            50% { opacity: 0.05; }
+            100% { opacity: 0.02; }
+        }
+
+        /* CRT BEAM (White Flash) Styles */
+        .crt-beam {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            box-shadow: 0 0 20px 5px white, 0 0 40px 10px rgba(255,255,255,0.7);
+            opacity: 0;
+            z-index: 50;
+            pointer-events: none;
+            border-radius: 50%;
+            width: 0;
+            height: 0;
+        }
+
+        .beam-on {
+            animation: beam-turn-on 0.6s ease-out forwards;
+        }
+        
+        .beam-off {
+            animation: beam-turn-off 0.6s ease-in forwards;
+        }
+
+        @keyframes beam-turn-on {
+            0% { width: 0; height: 0; opacity: 1; }
+            15% { width: 8px; height: 8px; opacity: 1; border-radius: 50%; }
+            40% { width: 100%; height: 3px; opacity: 1; border-radius: 0; }
+            60% { width: 100%; height: 100%; opacity: 0.5; border-radius: 0; }
+            100% { width: 100%; height: 100%; opacity: 0; }
+        }
+
+        @keyframes beam-turn-off {
+            0% { width: 100%; height: 100%; opacity: 0; }
+            40% { width: 100%; height: 3px; opacity: 0.5; border-radius: 0; }
+            60% { width: 100%; height: 3px; opacity: 1; border-radius: 0; }
+            85% { width: 8px; height: 8px; opacity: 1; border-radius: 50%; }
+            100% { width: 0; height: 0; opacity: 0; }
+        }
+
+        /* SCREEN CONTENT ANIMATIONS (Synced with Beam) */
+        @keyframes turn-on-content {
+            0% { transform: scale(0, 0); opacity: 0; }
+            40% { transform: scale(1, 0.005); opacity: 0; }
+            50% { transform: scale(1, 0.005); opacity: 1; }
+            100% { transform: scale(1, 1); opacity: 1; }
+        }
+
+        @keyframes turn-off-content {
+            0% { transform: scale(1, 1); opacity: 1; }
+            40% { transform: scale(1, 0.005); opacity: 1; }
+            50% { transform: scale(1, 0.005); opacity: 0; }
+            100% { transform: scale(0, 0); opacity: 0; }
+        }
+
+        .tv-on .screen-content {
+            opacity: 1;
+            animation: turn-on-content 0.6s ease-out forwards;
+        }
+
+        .tv-off .screen-content {
+            animation: turn-off-content 0.6s ease-in forwards;
+        }
+
+        /* Active Channel Indication */
+        .active-section {
+            display: block;
+        }
+        .hidden-section {
+            display: none;
+        }
+        
+        .noise {
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                repeating-radial-gradient(#000 0, #000 1px, #fff 1px, #fff 2px);
+            background-size: 100% 2px, 4px 4px;
+            animation: noise .2s infinite linear;
+        }
+        @keyframes noise {
+            0% { background-position: 0 0; }
+            100% { background-position: 100px 100px; }
+        }
+
+        /* Teletext Grid Utilities */
+        .tx-container {
+            /* INCREASED PADDING TO PREVENT EDGE CUTOFF */
+            padding: 30px 40px; 
+            font-size: 1.2rem;
+            line-height: 1.2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        @media (max-width: 600px) {
+            .tx-container {
+                font-size: 0.9rem;
+                padding: 20px 25px; /* Mobile padding */
+            }
+        }
+
+        .tx-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #fff; 
+            padding-bottom: 5px;
+        }
+        
+        .blink {
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+
+        /* Input styling */
+        .tx-input {
+            background: black;
+            border: none;
+            border-bottom: 2px solid #00FF00;
+            color: #00FF00;
+            font-family: 'VT323', monospace;
+            font-size: inherit;
+            width: 100%;
+            outline: none;
+        }
+        .tx-input::placeholder {
+            color: #005500;
+        }
+        
+        /* Remote Control Styles */
+        .remote-slide-out {
+            transform: translateY(150%);
+            opacity: 0;
+        }
+
+        /* Header Safe Area */
+        #teletext-header {
+            /* Added considerable padding to move away from CRT rounded corners */
+            padding-left: 3rem; 
+            padding-right: 3rem;
+            padding-top: 2rem;
+        }
+
+        /* Game Specific Styles */
+        #meteo-game {
+            width: 100%;
+            height: 400px;
+            background-color: #000033; /* Dark Blue sea */
+            border: 2px solid #fff;
+            image-rendering: pixelated;
+            cursor: none; /* Hide cursor inside game */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="tv-set shadow-2xl">
+        <div class="screen-container relative" id="screen-hitbox">
+            
+            <!-- CRT BEAM EFFECT ELEMENT -->
+            <div id="crt-beam" class="crt-beam"></div>
+
+            <div id="screen" class="screen-content tv-off font-teletext">
+                
+                <!-- Overlay Effects -->
+                <div class="scanlines"></div>
+                <div class="flicker"></div>
+                <div class="vignette"></div>
+
+                <!-- CONTENT WRAPPER -->
+                <div class="relative z-0 h-full w-full">
+
+                    <!-- TOP HEADER (Safe area padding increased) -->
+                    <div id="teletext-header" class="absolute top-0 left-0 right-0 z-20 hidden">
+                        <div class="flex justify-between items-center text-white text-lg md:text-2xl font-bold tracking-widest">
+                            <div><span id="page-num" class="tx-white">P100</span> <span class="tx-white">TVAI</span></div>
+                            <div class="tx-yellow" id="clock">00:00:00</div>
+                        </div>
+                    </div>
+
+                    <!-- PAGE 100: HOME / INDEX -->
+                    <div id="channel-1" class="channel active-section h-full">
+                        <!-- Added pt-24 to push content below the now larger header area -->
+                        <div class="tx-container pt-24">
+                            
+                            <!-- ASCII ART / LOGO AREA -->
+                            <div class="text-center mb-6">
+                                <div class="inline-block text-left leading-none font-bold text-2xl md:text-4xl">
+                                    <span class="bg-tx-blue tx-yellow">&nbsp;&nbsp;TVAI&nbsp;&nbsp;</span><span class="bg-tx-yellow tx-blue">&nbsp;&nbsp;VIDEO&nbsp;&nbsp;</span><br>
+                                    <span class="bg-tx-blue tx-yellow">&nbsp;&nbsp;AI&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="bg-tx-yellow tx-blue">&nbsp;&nbsp;TELEX&nbsp;&nbsp;</span>
+                                </div>
+                                <div class="mt-2 text-xl md:text-2xl tx-cyan tracking-widest">
+                                    TELE VISIONE ANCHE ITALIANA
+                                </div>
+                            </div>
+
+                            <!-- INDEX -->
+                            <div class="grid grid-cols-1 gap-2 text-xl md:text-2xl">
+                                <div>
+                                    <span class="tx-white">100</span> <span class="tx-green">INDICE GENERALE</span>
+                                </div>
+                                <div class="mt-4">
+                                    <span class="tx-white">200</span> <span class="tx-cyan">PALINSESTO & NEWS</span>
+                                    <!-- Reduced margin from ml-10 to ml-4 to fix cutoff -->
+                                    <div class="text-sm md:text-lg tx-white ml-4">IL FUTURO E' IERI...... P.201</div>
+                                </div>
+                                <div class="mt-4">
+                                    <span class="tx-white">300</span> <span class="tx-magenta">CONTATTI</span>
+                                    <!-- Reduced margin from ml-10 to ml-4 to fix cutoff -->
+                                    <div class="text-sm md:text-lg tx-white ml-4">MANDA UN SEGNALE....... P.301</div>
+                                </div>
+                                <div class="mt-4">
+                                    <span class="tx-white">400</span> <span class="tx-yellow">METEO DATI</span>
+                                    <div class="text-sm md:text-lg tx-white ml-4">GIOCO INTERATTIVO...... P.401</div>
+                                </div>
+                            </div>
+
+                            <!-- FOOTER NAV -->
+                            <div class="mt-auto border-t-2 border-white pt-2 flex justify-around text-xl">
+                                <span class="tx-red">P200 &gt;&gt;</span>
+                                <span class="tx-green">P300 &gt;&gt;</span>
+                                <span class="tx-yellow">P400 &gt;&gt;</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAGE 200: NEWS / PROGRAMS -->
+                    <div id="channel-2" class="channel hidden-section h-full">
+                        <div class="tx-container pt-24">
+                            <h2 class="bg-tx-blue tx-white text-center text-2xl mb-4">PALINSESTO ODIERNO</h2>
+                            
+                            <div class="space-y-6 text-lg md:text-2xl">
+                                <div>
+                                    <span class="bg-tx-red tx-white px-1">20:30</span> <span class="tx-cyan">TG NEURALE</span><br>
+                                    <span class="tx-white">L'AI analizza il mondo.</span>
+                                </div>
+                                
+                                <div>
+                                    <span class="bg-tx-red tx-white px-1">21:00</span> <span class="tx-yellow">CAROSELLO SINTETICO</span><br>
+                                    <span class="tx-white">Pubblicità generativa.</span>
+                                </div>
+
+                                <div>
+                                    <span class="bg-tx-red tx-white px-1">22:30</span> <span class="tx-green">INTERVALLO</span><br>
+                                    <span class="tx-white">Paesaggi digitali.</span>
+                                </div>
+
+                                <div>
+                                    <span class="bg-tx-red tx-white px-1">24:00</span> <span class="tx-magenta">FINE DEI PROGRAMMI</span><br>
+                                    <span class="tx-white">Iniziazione slop</span>
+                                </div>
+                            </div>
+
+                             <!-- FOOTER NAV -->
+                             <div class="mt-auto border-t-2 border-white pt-2 text-center text-xl">
+                                <span class="tx-white">TVAI</span> <span class="blink">pagina successiva >></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAGE 300: CONTACTS -->
+                    <div id="channel-3" class="channel hidden-section h-full">
+                         <div class="tx-container pt-24">
+                            <h2 class="bg-tx-magenta tx-white text-center text-2xl mb-6">SCRIVICI</h2>
+                            
+                            <!-- Added side margins (mx-2 md:mx-12) to prevent edges from being cut off -->
+                            <div class="border-2 border-white p-4 mx-2 md:mx-12">
+                                <p class="tx-green mb-2">EMAIL MITTENTE:</p>
+                                <input type="email" id="contact-email" class="tx-input mb-4" placeholder="IL_TUO_INDIRIZZO@EMAIL.COM">
+                                
+                                <p class="tx-green mb-2">MESSAGGIO:</p>
+                                <textarea id="contact-message" class="bg-black border-2 border-green-600 h-24 p-2 text-green-500 w-full mb-4 font-teletext outline-none resize-none uppercase" placeholder="SCRIVI QUI IL TUO MESSAGGIO..."></textarea>
+
+                                <button class="bg-tx-green tx-black px-4 py-1 w-full font-bold hover:bg-white hover:text-black transition-colors" onclick="sendEmail()">
+                                    INVIA DATI VIA EMAIL
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAGE 400: METEO GAME -->
+                    <div id="channel-4" class="channel hidden-section h-full">
+                        <div class="tx-container pt-24 h-full flex flex-col">
+                           <h2 class="bg-tx-yellow tx-blue text-center text-2xl mb-2">METEO PONG: ANTICICLONE vs PERTURBAZIONE</h2>
+                           <p class="text-center text-sm tx-green mb-2 blink">DISTRUGGI I BLOCCHI VERDI PER SALVARE L'ESTATE!</p>
+                           
+                           <div class="flex-grow relative flex items-center justify-center">
+                               <canvas id="meteo-game" width="600" height="400"></canvas>
+                           </div>
+
+                           <!-- FOOTER NAV -->
+                           <div class="mt-auto border-t-2 border-white pt-2 text-center text-xl">
+                               <span class="tx-white">PUNTEGGIO: <span id="score-display" class="tx-yellow">0</span></span>
+                           </div>
+                       </div>
+                   </div>
+
+                     <!-- TRANSITION NOISE CHANNEL (Formerly Channel 4) -->
+                     <div id="channel-noise" class="channel hidden-section h-full">
+                        <div class="noise"></div>
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white font-teletext bg-blue-800 px-4 py-2 border border-white">
+                            SEGNALE CRIPTATO
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- TV CONTROLS -->
+        <div class="controls">
+            <!-- Power Knob -->
+            <div class="flex flex-col items-center gap-1">
+                <div class="knob" id="power-btn" onclick="togglePower()"></div>
+                <span class="text-[10px] text-gray-500 font-teletext uppercase tracking-widest">I/O</span>
+            </div>
+
+            <!-- Brand -->
+            <div class="brand-logo">VISIOTRON <span class="text-xs">AI</span></div>
+
+            <!-- Channel Knob -->
+            <div class="flex flex-col items-center gap-1">
+                <div class="knob" id="channel-btn" onclick="changeChannel()"></div>
+                <span class="text-[10px] text-gray-500 font-teletext uppercase tracking-widest">PAGINA</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- REMOTE CONTROL OVERLAY -->
+    <div id="remote-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm transition-transform duration-700">
+        <div class="bg-neutral-800 p-8 rounded-xl shadow-2xl border-b-8 border-r-8 border-neutral-900 w-64 flex flex-col items-center transform transition-transform hover:scale-105">
+            <!-- IR Window -->
+            <div class="w-full h-8 bg-red-900 rounded-t-md mb-6 shadow-inner opacity-80 border-t border-red-700"></div>
+            
+            <!-- Branding Text -->
+            <h1 class="font-teletext text-3xl text-gray-400 mb-1 tracking-widest">TVAI</h1>
+            <p class="font-teletext text-sm text-gray-500 text-center mb-8 leading-tight tracking-wider">
+                LA TELE VISIONE<br>ANCHE ITALIANA
+            </p>
+            
+            <!-- Big Red Button -->
+            <button onclick="startExperience()" class="w-20 h-20 rounded-full bg-red-600 border-b-4 border-r-4 border-red-800 shadow-[2px_2px_5px_rgba(0,0,0,0.5)] active:shadow-none active:translate-y-1 active:translate-x-1 active:border-none flex items-center justify-center group mb-8 transition-all relative overflow-hidden">
+                <!-- Power Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-900 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </button>
+            
+            <p class="font-teletext text-red-500 text-xl animate-pulse">ACCENDI</p>
+            
+            <!-- Decorative Grid -->
+            <div class="mt-8 grid grid-cols-3 gap-2 w-full opacity-30 pointer-events-none">
+                <div class="h-2 bg-black rounded"></div><div class="h-2 bg-black rounded"></div><div class="h-2 bg-black rounded"></div>
+                <div class="h-2 bg-black rounded"></div><div class="h-2 bg-black rounded"></div><div class="h-2 bg-black rounded"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isPowerOn = false;
+        let currentChannel = 1; 
+        const pageMap = { 1: "P100", 2: "P200", 3: "P300", 4: "P400" };
+        const screen = document.getElementById('screen');
+        const beam = document.getElementById('crt-beam');
+        const channelBtn = document.getElementById('channel-btn');
+        const powerBtn = document.getElementById('power-btn');
+        const header = document.getElementById('teletext-header');
+        const remote = document.getElementById('remote-overlay');
+
+        /* --- METEO PONG GAME LOGIC --- */
+        const canvas = document.getElementById('meteo-game');
+        const ctx = canvas.getContext('2d');
+        const screenHitbox = document.getElementById('screen-hitbox');
+        let gameLoopId;
+        let score = 0;
+        
+        // Game Objects
+        const ball = { x: 300, y: 200, dx: 5, dy: 5, radius: 8 };
+        const paddle = { x: 20, y: 150, width: 15, height: 80 };
+        const blocks = [];
+        
+        function spawnBlock() {
+            return {
+                x: 150 + Math.random() * 400, // Spawn in right area
+                y: 20 + Math.random() * 360,
+                width: 30,
+                height: 30,
+                color: '#00AA00', // Green
+                char: Math.random() > 0.5 ? '█' : '▓'
+            };
+        }
+
+        function initGame() {
+            score = 0;
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.dx = 5; 
+            ball.dy = 5;
+            document.getElementById('score-display').innerText = score;
+            
+            // Reset blocks
+            blocks.length = 0;
+            for(let i=0; i<15; i++) blocks.push(spawnBlock());
+            
+            if(gameLoopId) cancelAnimationFrame(gameLoopId);
+            gameLoop();
+        }
+
+        // Mouse Listener specific to TV Screen
+        screenHitbox.addEventListener('mousemove', (e) => {
+            if (currentChannel !== 4 || !isPowerOn) return;
+            
+            // Calculate relative Y position within the canvas
+            const rect = canvas.getBoundingClientRect();
+            const scaleY = canvas.height / rect.height;
+            const relativeY = (e.clientY - rect.top) * scaleY;
+            
+            // Move paddle center to mouse Y
+            paddle.y = relativeY - (paddle.height / 2);
+            
+            // Bounds check
+            if(paddle.y < 0) paddle.y = 0;
+            if(paddle.y + paddle.height > canvas.height) paddle.y = canvas.height - paddle.height;
+        });
+
+        function gameLoop() {
+            if (currentChannel !== 4 || !isPowerOn) return;
+
+            // Clear Canvas
+            ctx.fillStyle = '#000033'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Paddle
+            ctx.fillStyle = '#FFAA00';
+            ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+            ctx.fillStyle = '#FFF';
+            ctx.font = '10px monospace';
+            ctx.fillText("ANTICICLONE", paddle.x - 10, paddle.y - 5);
+
+            // Draw Blocks (Perturbazione)
+            ctx.fillStyle = '#00FF00'; // Bright Green for blocks
+            ctx.font = '24px monospace';
+            
+            // Process Blocks
+            for (let i = blocks.length - 1; i >= 0; i--) {
+                const b = blocks[i];
+                ctx.fillText(b.char, b.x, b.y + 20); // Draw text (y is baseline)
+                
+                // Simple Collision Detection (AABB)
+                if (
+                    ball.x + ball.radius > b.x &&
+                    ball.x - ball.radius < b.x + 24 &&
+                    ball.y + ball.radius > b.y &&
+                    ball.y - ball.radius < b.y + 24
+                ) {
+                    // Collision detected
+                    // Determine bounce direction (simple)
+                    if (Math.abs(ball.x - (b.x + 12)) > Math.abs(ball.y - (b.y + 12))) {
+                        ball.dx = -ball.dx;
+                    } else {
+                        ball.dy = -ball.dy;
+                    }
+                    
+                    // Remove block and spawn new one
+                    blocks.splice(i, 1);
+                    blocks.push(spawnBlock());
+                    
+                    score += 50;
+                    document.getElementById('score-display').innerText = score;
+                }
+            }
+            
+            ctx.fillStyle = '#FFF';
+            ctx.font = '14px monospace';
+            ctx.fillText("PERTURBAZIONE", 450, 380);
+
+            // Draw Ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFFFFF'; // White ball
+            ctx.fill();
+            ctx.closePath();
+
+            // Ball Physics
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Wall Collisions
+            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+                ball.dy = -ball.dy;
+            }
+            if (ball.x + ball.radius > canvas.width) {
+                ball.dx = -ball.dx;
+            }
+
+            // Paddle Collision
+            if (
+                ball.x - ball.radius < paddle.x + paddle.width &&
+                ball.y > paddle.y &&
+                ball.y < paddle.y + paddle.height
+            ) {
+                // Ensure ball is moving towards paddle (prevent stuck inside)
+                if(ball.dx < 0) {
+                    ball.dx = -ball.dx;
+                    // Speed up slightly
+                    ball.dx *= 1.05;
+                    ball.dy *= 1.05;
+                    
+                    // Add "spin" based on paddle hit position
+                    let relativeIntersectY = (paddle.y + (paddle.height / 2)) - ball.y;
+                    ball.dy = -relativeIntersectY * 0.15;
+                }
+            }
+
+            // Reset if missed
+            if (ball.x < 0) {
+                ball.x = canvas.width / 2;
+                ball.y = canvas.height / 2;
+                ball.dx = 5; 
+                ball.dy = 5;
+                score = 0;
+                document.getElementById('score-display').innerText = "MALTEMPO! 0";
+            }
+
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+        /* --------------------------- */
+
+        function sendEmail() {
+            const email = document.getElementById('contact-email').value;
+            const message = document.getElementById('contact-message').value;
+            
+            if(!message) {
+                alert('ERRORE: NESSUN MESSAGGIO INSERITO');
+                return;
+            }
+
+            const subject = "Messaggio dal Televideo TVAI";
+            const body = `Mittente: ${email || 'Non specificato'}\n\nMessaggio:\n${message}`;
+            window.location.href = `mailto:info@televisioneai.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+            const timeStr = now.toLocaleTimeString('it-IT');
+            document.getElementById('clock').innerText = `${dateStr} ${timeStr}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Called by Remote Button
+        function startExperience() {
+            // Animate remote away
+            remote.classList.add('remote-slide-out');
+            
+            // Turn on TV after brief delay
+            setTimeout(() => {
+                togglePower();
+                // Remove remote from DOM completely after animation
+                setTimeout(() => {
+                    remote.style.display = 'none';
+                }, 700);
+            }, 300);
+        }
+
+        function togglePower() {
+            isPowerOn = !isPowerOn;
+            
+            powerBtn.style.transform = isPowerOn ? 'rotate(45deg)' : 'rotate(0deg)';
+
+            if (isPowerOn) {
+                screen.classList.remove('tv-off');
+                screen.classList.add('tv-on');
+                
+                beam.classList.remove('beam-off');
+                beam.classList.add('beam-on');
+
+                setTimeout(() => {
+                    screen.style.opacity = 1;
+                    header.classList.remove('hidden');
+                    // Start game if on channel 4
+                    if(currentChannel === 4) initGame();
+                }, 100);
+            } else {
+                screen.classList.remove('tv-on');
+                screen.classList.add('tv-off');
+                
+                beam.classList.remove('beam-on');
+                beam.classList.add('beam-off');
+
+                setTimeout(() => {
+                    screen.style.opacity = 0;
+                    header.classList.add('hidden');
+                    // Stop game
+                    if(gameLoopId) cancelAnimationFrame(gameLoopId);
+                }, 400);
+            }
+        }
+
+        function changeChannel() {
+            if (!isPowerOn) return;
+
+            const rotation = currentChannel * 45;
+            channelBtn.style.transform = `rotate(${rotation}deg)`;
+
+            header.classList.add('hidden');
+
+            document.querySelectorAll('.channel').forEach(el => el.classList.add('hidden-section'));
+            document.querySelectorAll('.channel').forEach(el => el.classList.remove('active-section'));
+            
+            // Show Noise
+            document.getElementById('channel-noise').classList.remove('hidden-section');
+            document.getElementById('channel-noise').classList.add('active-section');
+
+            // Stop Game Loop if leaving channel 4
+            if(gameLoopId) cancelAnimationFrame(gameLoopId);
+
+            setTimeout(() => {
+                document.getElementById('channel-noise').classList.add('hidden-section');
+                document.getElementById('channel-noise').classList.remove('active-section');
+
+                currentChannel++;
+                if (currentChannel > 4) currentChannel = 1; // Updated to 4 channels
+
+                document.getElementById('page-num').innerText = pageMap[currentChannel];
+                header.classList.remove('hidden');
+
+                const nextChannelId = `channel-${currentChannel}`;
+                document.getElementById(nextChannelId).classList.remove('hidden-section');
+                document.getElementById(nextChannelId).classList.add('active-section');
+
+                // Start Game if entering channel 4
+                if (currentChannel === 4) {
+                    initGame();
+                }
+
+            }, 200); 
+        }
+    </script>
+</body>
+</html>
